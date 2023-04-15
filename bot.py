@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 
 import discord
 import requests
@@ -16,6 +17,11 @@ def check_server_status():
     JSON_response = response.json()
     return JSON_response['online']
 
+def check_docker_container_status():
+    docker_container_status = os.popen(f"docker inspect {os.getenv('MINECRAFT_SERVER_CONTAINER_NAME')}").read()
+    JSON_docker_container_status = json.loads(docker_container_status)[0]
+    return JSON_docker_container_status['State']['Status']
+
 
 @bot.event
 async def on_ready():
@@ -25,7 +31,7 @@ async def on_ready():
 @bot.slash_command(description="Start the minecraft server")
 async def start(ctx):
     # Check if the server is already running
-    if check_server_status():
+    if check_docker_container_status() == "running":
         await ctx.respond(":red_circle: Server is already running!")
         return
 
@@ -59,7 +65,7 @@ async def start(ctx):
 @bot.slash_command(description="Stop the minecraft server")
 async def stop(ctx):
     # Check if the server is already running
-    if not check_server_status():
+    if check_docker_container_status() == "exited":
         await ctx.respond(":red_circle: Server is already stopped!")
         return
 
@@ -67,6 +73,19 @@ async def stop(ctx):
 
     # Stop the server with docker and the container name
     os.system(f"docker stop {os.getenv('MINECRAFT_SERVER_CONTAINER_NAME')}")
+
+    # Check if the server is running
+    counter = 0
+    while check_docker_container_status() != "exited":
+        # wait 5 seconds
+        range_to_check = 5
+        await asyncio.sleep(range_to_check)
+        counter += 1
+        if counter == 36:
+            await ctx.respond(f"{ctx.author.mention}:red_circle: Server failed to stop! (stop checking after {counter * range_to_check / 60} minutes)")
+            return
+
+    await ctx.respond(f":green_circle: Server is now offline!")
 
 @bot.slash_command(description="Check if the server is running")
 async def status(ctx):
@@ -81,8 +100,7 @@ async def status(ctx):
         response = requests.request("GET", url)
         JSON_response = response.json()
 
-        docker_container_status = os.popen(f"docker inspect {os.getenv('MINECRAFT_SERVER_CONTAINER_NAME')}").read()
-        print(docker_container_status)
+        embed.add_field(name="Docker container status", value=check_docker_container_status(), inline=False)
 
         embed.add_field(name="IP", value=JSON_response['host'], inline=False)
         embed.add_field(name="Players", value=f"{JSON_response['players']['online']}/{JSON_response['players']['max']}", inline=False)
@@ -100,5 +118,14 @@ async def status(ctx):
             color=discord.Colour.red()
         )
         await ctx.respond(embed=embed)
+
+@bot.slash_command(description="about the bot")
+async def about(ctx):
+    embed = discord.Embed(
+        title="About the bot",
+        color=discord.Colour.green()
+    )
+    embed.add_field(name="Author", value="kangapi#7625", inline=False)
+    embed.add_field(name="Github", value="https://github.com/kangapi/minecraft-server-discord-bot", inline=False)
 
 bot.run(os.getenv('TOKEN'))  # run the bot with the token
