@@ -128,4 +128,6 @@ async def about(ctx):
     embed.add_field(name="Author", value="kangapi#7625", inline=False)
     embed.add_field(name="Github", value="https://github.com/kangapi/minecraft-server-discord-bot", inline=False)
 
+    await ctx.respond(embed=embed)
+
 bot.run(os.getenv('TOKEN'))  # run the bot with the token
