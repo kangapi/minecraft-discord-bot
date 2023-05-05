@@ -1,3 +1,13 @@
+# Screenshots
+
+### `/status` command
+
+![](screenshots/status.png)
+
+### `/stop` command
+
+![](screenshots/stop.png)
+
 # How to use
 
 ## 1. Clone the repository in your server folder
